@@ -26,9 +26,10 @@
     <g font-family="'Segoe UI', 'Microsoft YaHei', sans-serif" font-weight="bold" 
        text-anchor="middle" dominant-baseline="central" letter-spacing="-5">
        
-       <text x="-60" y="-10" font-size="180" fill="#333333">Pin</text>
-       
-       <text x="140" y="-10" font-size="180" fill="#40a9ff" filter="url(#text-glow)">MD</text>
+       <g transform="translate(-40, 0)">
+         <text x="-60" y="-10" font-size="180" fill="#333333">Pin</text>
+         <text x="140" y="-10" font-size="180" fill="#40a9ff" filter="url(#text-glow)">MD</text>
+       </g>
     </g>
     
   </g>

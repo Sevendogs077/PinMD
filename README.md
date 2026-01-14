@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="figures/logo.svg" alt="Logo" width="800">
+  <img src="figures/logo.svg" alt="Logo" width="1000">
 </p>
 
 ## 简介
