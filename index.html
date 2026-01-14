@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PinMD</title>
+  <style>
+    /* --- 1. 核心变量 --- */
+    :root {
+      --bg-color: rgba(0, 0, 0, 0.5); 
+      --text-color: #ffffff;
+      --highlight-color: #40a9ff; 
+      --font-size: 14px; 
+      --font-family: 'Microsoft YaHei', sans-serif;
+    }
+
+    /* --- 2. 全局基础 --- */
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: var(--font-family);
+      user-select: none; 
+      -webkit-user-select: none;
+    }
+
+    #app-container {
+      width: 100%; height: 100%;
+      background-color: var(--bg-color);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-sizing: border-box;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      padding: 12px; 
+      color: var(--text-color);
+      position: relative;
+      transition: background-color 0.2s;
+    }
+
+    #toolbar {
+      display: flex; 
+      align-items: center;
+      margin-bottom: 6px; 
+      height: 28px;
+      flex-shrink: 0;
+      opacity: 1; 
+    }
+
+    /* --- 按钮样式 --- */
+    .icon-btn {
+      cursor: pointer; 
+      background: transparent; 
+      border: none;
+      color: rgba(255,255,255,0.6); 
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      -webkit-app-region: no-drag; 
+      transition: all 0.2s;
+    }
+    
+    #toolbar .icon-btn { opacity: 0; }
+    #toolbar:hover .icon-btn { opacity: 1; }
+
+    #settings-panel .icon-btn {
+        opacity: 1 !important; 
+        background: rgba(255,255,255,0.1);
+        font-size: 12px;
+    }
+    
+    .icon-btn:hover { background: rgba(255,255,255,0.3) !important; transform: scale(1.1); }
+
+    .drag-zone {
+      flex: 1; height: 100%; margin: 0 8px;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-app-region: drag; cursor: default; 
+    }
+    
+    .drag-indicator-bar {
+      width: 36px; height: 4px; 
+      background: rgba(255, 255, 255, 0.9); 
+      border-radius: 10px; 
+      transition: all 0.2s; pointer-events: none; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    /* --- 4. 笔记内容区 --- */
+    #content {
+      flex: 1; overflow-y: auto; padding-right: 4px;
+      font-size: var(--font-size);
+      user-select: text; -webkit-user-select: text;
+      line-height: 1.6;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
+    }
+    #content::-webkit-scrollbar,
+    .panel-body::-webkit-scrollbar { width: 3px; }
+
+    #content::-webkit-scrollbar-thumb,
+    .panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+    /* Markdown 优化 */
+    #content h1, #content h2 { 
+        color: var(--text-color); 
+        border-bottom: 1px solid rgba(255,255,255,0.1); 
+        padding-bottom: 4px; margin-top: 12px; margin-bottom: 6px;
+        font-weight: 600; font-size: 1.15em;
+    }
+    #content strong { color: var(--highlight-color) !important; font-weight: bold;}
+    #content code { 
+        background: rgba(255,255,255,0.15); 
+        color: #a6e22e; 
+        padding: 1px 4px; border-radius: 3px; 
+        font-family: 'Consolas', monospace; font-size: 0.9em;
+    }
+    #content ul { padding-left: 18px; margin: 4px 0; }
+    #content li { margin-bottom: 3px; }
+    #content blockquote {
+        border-left: 3px solid var(--highlight-color);
+        margin: 6px 0; padding-left: 8px; color: rgba(255,255,255,0.6);
+    }
+
+    /* --- 5. 右下角悬浮编辑按钮 --- */
+    .edit-fab {
+        position: absolute;
+        bottom: 15px; right: 15px;
+        width: 36px; height: 36px;
+        background: rgba(64, 169, 255, 0.2); 
+        border: 1px solid rgba(64, 169, 255, 0.4);
+        border-radius: 10px;
+        color: white;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+        opacity: 0.1; 
+        transition: all 0.2s;
+        backdrop-filter: blur(4px);
+        font-size: 16px;
+        z-index: 50;
+    }
+    
+    .edit-fab:hover { 
+        opacity: 1 !important; 
+        background: #40a9ff; 
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    /* --- 6. 设置面板 --- */
+    #settings-panel {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(20, 20, 20, 0.98); 
+      z-index: 99;
+      display: none; flex-direction: column;
+      padding: 0; 
+      user-select: none; 
+      animation: fadeIn 0.15s ease-out;
+      font-size: 14px !important; 
+      color: #fff;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #settings-panel.active { display: flex; }
+
+    .panel-header { 
+        padding: 12px; 
+        height: 28px;
+        display: flex; justify-content: space-between; align-items: center; 
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        flex-shrink: 0;
+    }
+    .panel-title { font-size: 18px; font-weight: bold; letter-spacing: 1px; color: #fff; }
+    
+    .panel-body { flex: 1; padding: 20px; overflow-y: auto; }
+    
+    .setting-group { margin-bottom: 30px; }
+    
+    .group-label { 
+        font-size: 16px; 
+        color: #40a9ff; 
+        margin-bottom: 15px; font-weight: bold;
+    }
+
+    .setting-row { 
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    .setting-row label { 
+        font-size: 14px; 
+        color: rgba(255,255,255,0.9); 
+    }
+    
+    /* 纯色圆形取色器 */
+    input[type="color"] { 
+        -webkit-appearance: none;
+        appearance: none;
+        border: none;
+        width: 28px; height: 28px;
+        padding: 0; 
+        background: transparent; 
+        cursor: pointer; 
+        overflow: hidden;
+    }
+    /* 去除 Webkit 默认的内边距和边框 */
+    input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0; 
+    }
+    input[type="color"]::-webkit-color-swatch {
+        border: 2px solid rgba(255,255,255,0.5); /* 增加白色描边以适应黑底 */
+        border-radius: 50%; /* 圆形 */
+    }
+    
+    input[type="number"] { 
+        background: #333; border: 1px solid #555; 
+        color: white; padding: 8px; border-radius: 6px; 
+        width: 60px; text-align: center; font-size: 16px;
+    }
+
+    input[type="range"] { 
+        width: 140px; height: 4px; border-radius: 2px;
+        accent-color: var(--highlight-color); cursor: pointer;
+    }
+
+    .panel-footer { 
+        padding: 20px; 
+        border-top: 1px solid rgba(255,255,255,0.1);
+        display: flex; gap: 15px; 
+    }
+    .action-btn {
+        flex: 1; padding: 12px; border-radius: 8px; 
+        background: rgba(255,255,255,0.1);
+        color: #fff; 
+        font-size: 15px; font-weight: bold; cursor: pointer; 
+        transition: all 0.2s; text-align: center;
+        border: 1px solid transparent;
+    }
+    .action-btn:hover { background: rgba(255,255,255,0.2); }
+    .action-btn.danger { color: #ff8e8e; border: 1px solid rgba(255, 60, 60, 0.2);}
+    .action-btn.danger:hover { background: rgba(255, 60, 60, 0.15); }
+
+    body.ghost #app-container { background-color: rgba(0,0,0,0.1) !important; border-color: transparent; pointer-events: none; }
+    body.ghost #toolbar { display: none; }
+    body.ghost .edit-fab { display: none; }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <div id="toolbar">
+      <button class="icon-btn" id="fileBtn" title="打开笔记">📂</button>
+      <div class="drag-zone" title="按住拖动窗口">
+        <div class="drag-indicator-bar"></div>
+      </div>
+      <button class="icon-btn" id="settingBtn" title="设置">⚙️</button>
+    </div>
+
+    <div id="content">Loading...</div>
+
+    <div class="edit-fab" id="editFab" title="打开笔记">✎</div>
+
+    <div id="settings-panel">
+      <div class="panel-header">
+        <span class="panel-title">设置</span>
+        <button class="icon-btn" id="closeSettings">✕</button>
+      </div>
+
+      <div class="panel-body">
+        <div class="setting-group">
+            <div class="group-label">外观样式</div>
+            <div class="setting-row">
+                <label>背景透明度</label>
+                <input type="range" id="opacityInput" min="0" max="1" step="0.05">
+            </div>
+            <div class="setting-row">
+                <label>高亮颜色</label>
+                <input type="color" id="boldColorInput">
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="group-label">阅读体验</div>
+            <div class="setting-row">
+                <label>字体大小 (px)</label>
+                <input type="number" id="fontSizeInput">
+            </div>
+        </div>
+      </div>
+
+      <div class="panel-footer">
+        <div class="action-btn danger" id="resetBtn">恢复默认</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fs = require('fs');
+    const { ipcRenderer } = require('electron');
+    const marked = require('marked');
+
+    // DOM 元素缓存
+    const dom = {
+      content: document.getElementById('content'),
+      settings: document.getElementById('settings-panel'),
+      container: document.getElementById('app-container'),
+      editFab: document.getElementById('editFab'),
+      inputs: {
+        opacity: document.getElementById('opacityInput'),
+        fontSize: document.getElementById('fontSizeInput'),
+        boldColor: document.getElementById('boldColorInput')
+      }
+    };
+
+    // 默认配置
+    const defaultSettings = {
+      opacity: 0.5,
+      fontSize: 14,
+      boldColor: '#40a9ff',
+      notePath: null
+    };
+    
+    // 加载配置
+    let settings = JSON.parse(localStorage.getItem('userSettings')) || defaultSettings;
+    
+    // 初始化应用
+    applySettings();
+    
+    let fileWatcher = null;
+    if (settings.notePath) {
+        loadAndWatch(settings.notePath);
+    } else {
+        dom.content.innerHTML = "<div style='display:flex; height:100%; align-items:center; justify-content:center; flex-direction:column; color:rgba(255,255,255,0.5); font-size:12px;'><div>📂 点击左上角打开</div></div>";
+    }
+
+    // --- 事件绑定 ---
+
+    // 打开/关闭设置面板
+    document.getElementById('settingBtn').onclick = () => dom.settings.classList.add('active');
+    document.getElementById('closeSettings').onclick = () => {
+      dom.settings.classList.remove('active');
+      saveSettings();
+    };
+
+    // 选择文件
+    document.getElementById('fileBtn').onclick = async () => {
+      const path = await ipcRenderer.invoke('open-file-dialog');
+      if (path) {
+        settings.notePath = path;
+        saveSettings();
+        loadAndWatch(path);
+      }
+    };
+
+    // 调用外部编辑器
+    dom.editFab.onclick = () => {
+        if (settings.notePath) {
+            ipcRenderer.invoke('open-external-file', settings.notePath);
+        } else {
+            alert('请先选择一个笔记文件');
+        }
+    };
+
+    // 恢复默认设置
+    document.getElementById('resetBtn').onclick = () => {
+        const currentPath = settings.notePath;
+        // 保留当前路径，其他重置
+        settings = { ...defaultSettings, notePath: currentPath }; 
+        saveSettings();
+        applySettings();
+        
+        const btn = document.getElementById('resetBtn');
+        btn.innerText = "已恢复";
+        setTimeout(() => btn.innerText = "恢复默认", 1000);
+    };
+
+    // 设置项实时预览
+    dom.inputs.opacity.oninput = (e) => { settings.opacity = e.target.value; updateCSS(); };
+    dom.inputs.fontSize.oninput = (e) => { settings.fontSize = e.target.value; updateCSS(); };
+    dom.inputs.boldColor.oninput = (e) => { settings.boldColor = e.target.value; updateCSS(); };
+
+    // --- 核心逻辑函数 ---
+
+    function updateCSS() {
+      dom.container.style.setProperty('--bg-color', `rgba(0, 0, 0, ${settings.opacity})`);
+      dom.container.style.setProperty('--font-size', `${settings.fontSize}px`);
+      dom.container.style.setProperty('--highlight-color', settings.boldColor);
+    }
+
+    function applySettings() {
+      dom.inputs.opacity.value = settings.opacity;
+      dom.inputs.fontSize.value = settings.fontSize;
+      dom.inputs.boldColor.value = settings.boldColor;
+      updateCSS();
+    }
+
+    function saveSettings() {
+      localStorage.setItem('userSettings', JSON.stringify(settings));
+    }
+
+    function loadAndWatch(filePath) {
+      renderNote(filePath);
+      // 监听文件变动，实现热更新
+      if (fileWatcher) fileWatcher.close();
+      fileWatcher = fs.watch(filePath, (e) => { 
+          if (e === 'change') renderNote(filePath); 
+      });
+    }
+
+    function renderNote(filePath) {
+      if (fs.existsSync(filePath)) {
+        const text = fs.readFileSync(filePath, 'utf-8');
+        dom.content.innerHTML = marked.parse(text);
+      }
+    }
+
+    // 幽灵模式监听
+    ipcRenderer.on('toggle-ghost', (e, isGhost) => {
+      isGhost ? document.body.classList.add('ghost') : document.body.classList.remove('ghost');
+    });
+  </script>
+</body>
+</html>
