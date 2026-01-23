@@ -32,6 +32,10 @@
 > 开启 **鼠标穿透**，悬浮于桌面顶层但不遮挡底下的任何窗口操作。
 > <br> ⌨️ 快捷键：<kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>
 
+#### ✅ 交互式待办 (Interactive To-Do)
+> 直接点击悬浮窗内的复选框，勾选状态 **实时同步** 至本地文件，无需切换编辑器即可完成任务。
+> <br> 📝 用法：在行首输入 `- [ ]` 即可创建待办事项。
+
 #### 🔥 热更预览 (Hot Reload)
 > **实时监视** 本地 `.md` 文件变化并毫秒级渲染，无需手动刷新，保存即更新。
 
@@ -40,7 +44,7 @@
 
 <br>
 
-## 📥 下载使用
+## 📥 下载安装
 
 <p align="center">
   <a href="https://github.com/Sevendogs077/PinMD/releases">
@@ -52,9 +56,40 @@
 
 <br>
 
+## 🛠️ 本地开发
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/Sevendogs077/PinMD.git
+```
+
+```bash
+# 2. 进入目录
+cd PinMD
+```
+
+```bash
+# 3. 安装依赖
+npm install
+```
+
+```bash
+# 4. 启动开发模式
+npm start
+```
+
+```bash
+# 5. 打包构建
+npm run build
+```
+
+<br>
+
 ## 📜 开源协议
 
 本项目基于 [GNU General Public License v3.0](LICENSE) 许可开源。
+
+<br>
 
 ---
 <p align="center">Copyright © 2026 Sevendogs077</p>
