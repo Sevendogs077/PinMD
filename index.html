@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>PinMD</title>
   <style>
-    /* --- 1. 核心变量 --- */
+    /* --- 核心变量 --- */
     :root {
       --bg-color: rgba(0, 0, 0, 0.5); 
       --text-color: #ffffff;
@@ -13,7 +13,7 @@
       --font-family: 'Microsoft YaHei', sans-serif;
     }
 
-    /* --- 2. 全局基础 --- */
+    /* --- 全局基础 --- */
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
       background: transparent !important;
@@ -85,20 +85,48 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
 
-    /* --- 4. 笔记内容区 --- */
+    /* --- 笔记内容区 --- */
     #content {
       flex: 1; overflow-y: auto; padding-right: 4px;
       font-size: var(--font-size);
       user-select: text; -webkit-user-select: text;
-      line-height: 1.6;
+      
+      /* 强制隐藏横向滚动条 */
+      overflow-x: hidden;
+      
+      /* 长单词、长链接自动换行 */
+      overflow-wrap: break-word; 
+      word-wrap: break-word;
+
+      /* 行间距优化 */
+      line-height: 1.8; 
+      
       text-shadow: 0 1px 2px rgba(0,0,0,0.5); 
     }
+    
+    /* 修复图片撑开宽度的问题 */
+    #content img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* 修复代码块和链接不换行的问题 */
+    #content pre, 
+    #content code {
+        white-space: pre-wrap; /* 让代码块遇到边界也自动换行，而不是产生滚动条 */
+        word-break: break-all; /* 暴力截断长命令 */
+    }
+    
+    #content a {
+        word-break: break-all; /* 强制长链接换行 */
+    }
+
+    /* 滚动条样式保持不变 */
     #content::-webkit-scrollbar,
     .panel-body::-webkit-scrollbar { width: 3px; }
 
     #content::-webkit-scrollbar-thumb,
     .panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
-
     /* Markdown 优化 */
     #content h1, #content h2 { 
         color: var(--text-color); 
@@ -114,13 +142,85 @@
         font-family: 'Consolas', monospace; font-size: 0.9em;
     }
     #content ul { padding-left: 18px; margin: 4px 0; }
-    #content li { margin-bottom: 3px; }
+    #content li { margin-bottom: 6px; }
     #content blockquote {
         border-left: 3px solid var(--highlight-color);
         margin: 6px 0; padding-left: 8px; color: rgba(255,255,255,0.6);
     }
 
-    /* --- 5. 右下角悬浮编辑按钮 --- */
+    /* 自定义列表样式 */
+
+    /* 1. 【基准缩进】 */
+    #content ul, #content ol {
+        padding-left: 24px; 
+    }
+
+    /* 2. 【复选框特权 - 负边距回拉】 */
+    #content li:has(input[type="checkbox"]) {
+        list-style-type: none;  
+        position: relative;     
+        
+        /* 内部：给复选框腾出位置，让文字右移 */
+        padding-left: 25px;     
+        
+        /* 外部：利用负 margin，抵消掉 ul 的 24px 缩进 */
+        margin-left: -24px; 
+    }
+
+    /* 3. 【普通列表】 */
+    #content li:not(:has(input[type="checkbox"])) {
+        list-style-type: disc; 
+    }
+
+    /* 4. 【清除干扰】 */
+    #content li:has(input[type="checkbox"]) > p {
+        margin: 0;
+        display: inline-block; 
+    }
+
+    /* 5. 【复选框定位】 */
+    #content input[type="checkbox"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 15px; height: 15px;
+        border: 2px solid rgba(255,255,255,0.6);
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        
+        /* 绝对定位 */
+        position: absolute;    
+        left: 2px;   
+        top: 4px;    /* 确保复选框垂直居中 */
+        margin: 0;             
+    }
+    
+    /* 交互效果 */
+    #content input[type="checkbox"]:hover {
+        border-color: var(--highlight-color);
+        box-shadow: 0 0 5px var(--highlight-color);
+    }
+    #content input[type="checkbox"]:checked {
+        background-color: var(--highlight-color);
+        border-color: var(--highlight-color);
+    }
+    #content input[type="checkbox"]:checked::after {
+        content: '';
+        position: absolute;
+        left: 3px; top: 0px;
+        width: 4px; height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+    }
+    #content li:has(input:checked) {
+        color: rgba(255,255,255,0.5);
+        text-decoration: line-through;
+        transition: color 0.2s;
+    }
+
+    /* --- 右下角悬浮编辑按钮 --- */
     .edit-fab {
         position: absolute;
         bottom: 15px; right: 15px;
@@ -145,7 +245,7 @@
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
-    /* --- 6. 设置面板 --- */
+    /* --- 设置面板 --- */
     #settings-panel {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(20, 20, 20, 0.98); 
@@ -375,6 +475,22 @@
     dom.inputs.fontSize.oninput = (e) => { settings.fontSize = e.target.value; updateCSS(); };
     dom.inputs.boldColor.oninput = (e) => { settings.boldColor = e.target.value; updateCSS(); };
 
+    // 监听 Checkbox 点击事件
+    dom.content.addEventListener('change', (e) => {
+        // 确保点击的是 Checkbox
+        if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
+            if (!settings.notePath) return;
+
+            // 获取当前所有 checkbox，找到被点击的 index
+            const allCheckboxes = Array.from(dom.content.querySelectorAll('input[type="checkbox"]'));
+            const index = allCheckboxes.indexOf(e.target);
+            
+            if (index !== -1) {
+                toggleTaskInFile(settings.notePath, index, e.target.checked);
+            }
+        }
+    });
+
     // --- 核心逻辑函数 ---
 
     function updateCSS() {
@@ -405,9 +521,48 @@
 
     function renderNote(filePath) {
       if (fs.existsSync(filePath)) {
+        const scrollPos = dom.content.scrollTop; // 记录滚动条位置
         const text = fs.readFileSync(filePath, 'utf-8');
-        dom.content.innerHTML = marked.parse(text);
+
+        let html = marked.parse(text);
+        
+        // 去除 disabled 属性，让 checkbox 可点
+        html = html.replace(/disabled=""/g, '').replace(/disabled/g, '');
+        dom.content.innerHTML = html;
+
+        // 恢复滚动条
+        dom.content.scrollTop = scrollPos;
       }
+    }
+
+    // --- 反向修改文件逻辑 ---
+    function toggleTaskInFile(filePath, targetIndex, isChecked) {
+        try {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            let matchIndex = 0;
+
+            // 正则匹配：行首(可能有缩进) + 列表符 + 空格 + [ ] 或 [x]
+            // gm 标志用于多行匹配
+            const regex = /^(\s*[-*+]\s+)\[([ xX])\]/gm;
+
+            const newContent = content.replace(regex, (match, prefix, state) => {
+                // 找到第 N 个 checkbox
+                if (matchIndex === targetIndex) {
+                    matchIndex++;
+                    // 替换状态：保持原有的缩进和列表符
+                    return `${prefix}[${isChecked ? 'x' : ' '}]`;
+                }
+                matchIndex++;
+                return match;
+            });
+
+            // 写回文件 -> 触发 fs.watch -> 自动调用 renderNote 更新界面
+            fs.writeFileSync(filePath, newContent, 'utf-8');
+            
+        } catch (err) {
+            console.error('修改文件失败:', err);
+            alert('写入文件失败，请检查文件权限');
+        }
     }
 
     // 幽灵模式监听

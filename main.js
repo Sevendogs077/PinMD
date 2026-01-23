@@ -33,8 +33,8 @@ function createWindow() {
   const defaultBounds = {
     width: 300,  
     height: 400, 
-    x: width - 300,
-    y: height - 450
+    x: width - 300 - 15,
+    y: height - 400 - 15
   };
 
   const bounds = defaultBounds;
