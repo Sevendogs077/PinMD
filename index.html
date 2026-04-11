@@ -84,6 +84,24 @@
       transition: all 0.2s; pointer-events: none; 
       box-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
+    
+    /* --- 内置 Markdown 编辑器 --- */
+    #md-editor {
+        flex: 1; overflow-y: auto; padding-right: 4px;
+        display: none; /* 默认隐藏 */
+        width: 100%; height: 100%;
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        font-size: var(--font-size);
+        font-family: 'Consolas', monospace; /* 编辑模式使用等宽字体更舒服 */
+        resize: none;
+        outline: none;
+        line-height: 1.8;
+        box-sizing: border-box;
+    }
+    #md-editor::-webkit-scrollbar { width: 3px; }
+    #md-editor::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
     /* --- 笔记内容区 --- */
     #content {
@@ -214,7 +232,16 @@
         border-width: 0 2px 2px 0;
         transform: rotate(45deg);
     }
-    #content li:has(input:checked) {
+
+    /* 针对紧凑列表：选中后只让包裹的文本加删除线，不影响相邻的 ul */
+    #content li:has(> input[type="checkbox"]:checked) > .task-text {
+        color: rgba(255,255,255,0.5);
+        text-decoration: line-through;
+        transition: color 0.2s;
+    }
+
+    /* 针对带空行的松散列表 */
+    #content li:has(> p > input[type="checkbox"]:checked) > p {
         color: rgba(255,255,255,0.5);
         text-decoration: line-through;
         transition: color 0.2s;
@@ -354,7 +381,9 @@
 
     <div id="content">Loading...</div>
 
-    <div class="edit-fab" id="editFab" title="打开笔记">✎</div>
+    <textarea id="md-editor" spellcheck="false"></textarea>
+
+    <div class="edit-fab" id="editFab" title="编辑笔记">✎</div>
 
     <div id="settings-panel">
       <div class="panel-header">
@@ -398,6 +427,7 @@
     // DOM 元素缓存
     const dom = {
       content: document.getElementById('content'),
+      editor: document.getElementById('md-editor'),
       settings: document.getElementById('settings-panel'),
       container: document.getElementById('app-container'),
       editFab: document.getElementById('editFab'),
@@ -448,8 +478,44 @@
       }
     };
 
-    // 调用外部编辑器
+    // --- 右下角悬浮按钮逻辑 ---
+    let isEditing = false;
+
+    // 左键：切换 内置编辑/预览 模式
     dom.editFab.onclick = () => {
+        if (!settings.notePath) {
+            alert('请先选择一个笔记文件');
+            return;
+        }
+
+        if (!isEditing) {
+            // 进入编辑模式
+            isEditing = true;
+            // 实时读取最新内容填入编辑器
+            dom.editor.value = fs.readFileSync(settings.notePath, 'utf-8');
+            dom.content.style.display = 'none';
+            dom.editor.style.display = 'block';
+            
+            dom.editFab.innerHTML = '💾'; // 图标变成保存
+            dom.editFab.title = "保存更改";
+            dom.editor.focus();
+        } else {
+            // 保存并退出编辑模式
+            const newText = dom.editor.value;
+            fs.writeFileSync(settings.notePath, newText, 'utf-8');
+            
+            isEditing = false;
+            dom.editor.style.display = 'none';
+            dom.content.style.display = 'block';
+            
+            dom.editFab.innerHTML = '✎'; // 图标变回编辑
+            dom.editFab.title = "编辑笔记";
+        }
+    };
+
+    // 右键：保留原来的调用外部编辑器功能
+    dom.editFab.oncontextmenu = (e) => {
+        e.preventDefault(); // 阻止默认右键菜单
         if (settings.notePath) {
             ipcRenderer.invoke('open-external-file', settings.notePath);
         } else {
@@ -477,16 +543,19 @@
 
     // 监听 Checkbox 点击事件
     dom.content.addEventListener('change', (e) => {
-        // 确保点击的是 Checkbox
         if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
             if (!settings.notePath) return;
 
-            // 获取当前所有 checkbox，找到被点击的 index
+            // 获取当前所有 checkbox，用于定位全局 index
             const allCheckboxes = Array.from(dom.content.querySelectorAll('input[type="checkbox"]'));
-            const index = allCheckboxes.indexOf(e.target);
+
+            const parentLi = e.target.closest('li');
+            const nestedCheckboxes = Array.from(parentLi.querySelectorAll('input[type="checkbox"]'));
+            const targetIndices = nestedCheckboxes.map(cb => allCheckboxes.indexOf(cb));
             
-            if (index !== -1) {
-                toggleTaskInFile(settings.notePath, index, e.target.checked);
+            // 批量传递给修改文件的函数
+            if (targetIndices.length > 0) {
+                toggleTasksInFile(settings.notePath, targetIndices, e.target.checked);
             }
         }
     });
@@ -521,14 +590,32 @@
 
     function renderNote(filePath) {
       if (fs.existsSync(filePath)) {
-        const scrollPos = dom.content.scrollTop; // 记录滚动条位置
+        const scrollPos = dom.content.scrollTop; 
         const text = fs.readFileSync(filePath, 'utf-8');
 
         let html = marked.parse(text);
-        
-        // 去除 disabled 属性，让 checkbox 可点
         html = html.replace(/disabled=""/g, '').replace(/disabled/g, '');
         dom.content.innerHTML = html;
+
+        // --- 新增：精准隔离父子列表的文本 ---
+        dom.content.querySelectorAll('li').forEach(li => {
+            // 只寻找直接子元素是 checkbox 的情况 (紧凑列表)
+            const checkbox = li.querySelector(':scope > input[type="checkbox"]');
+            if (checkbox) {
+                const wrapper = document.createElement('span');
+                wrapper.className = 'task-text'; // 配合上面的 CSS
+                
+                // 把 checkbox 后面的文本提取出来放进 span 里，直到遇到换行或子列表
+                let node = checkbox.nextSibling;
+                while (node && !['UL', 'OL', 'P', 'DIV', 'BLOCKQUOTE'].includes(node.nodeName)) {
+                    let next = node.nextSibling;
+                    wrapper.appendChild(node);
+                    node = next;
+                }
+                // 把包裹好的 span 塞回去
+                li.insertBefore(wrapper, checkbox.nextSibling);
+            }
+        });
 
         // 恢复滚动条
         dom.content.scrollTop = scrollPos;
@@ -536,20 +623,20 @@
     }
 
     // --- 反向修改文件逻辑 ---
-    function toggleTaskInFile(filePath, targetIndex, isChecked) {
+    // --- 反向修改文件逻辑 (支持批量) ---
+    function toggleTasksInFile(filePath, targetIndices, isChecked) {
         try {
             const content = fs.readFileSync(filePath, 'utf-8');
             let matchIndex = 0;
 
             // 正则匹配：行首(可能有缩进) + 列表符 + 空格 + [ ] 或 [x]
-            // gm 标志用于多行匹配
             const regex = /^(\s*[-*+]\s+)\[([ xX])\]/gm;
 
             const newContent = content.replace(regex, (match, prefix, state) => {
-                // 找到第 N 个 checkbox
-                if (matchIndex === targetIndex) {
+                // 如果当前匹配到的 index 在我们需要修改的数组里
+                if (targetIndices.includes(matchIndex)) {
                     matchIndex++;
-                    // 替换状态：保持原有的缩进和列表符
+                    // 批量替换状态
                     return `${prefix}[${isChecked ? 'x' : ' '}]`;
                 }
                 matchIndex++;

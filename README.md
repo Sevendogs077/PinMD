@@ -21,12 +21,16 @@
 </p>
 
 <p align="center">
-  <strong>🗒️ 一个极简的桌面悬浮 Markdown 便签工具 🗒️</strong>
+  <strong>🗒️ 极简 Markdown 便签 🗒️</strong>
 </p>
 
 <br>
 
 ## ✨ 主要特性
+
+#### ✍ 无缝内置编辑 (Built-in Editor)
+> 摆脱对第三方编辑器的强依赖。**左键** 点击右下角按钮，直接在界面内编辑 Markdown 源码。
+> <br> 🖱️ 进阶：**右键** 点击该按钮，依然可以一键唤起 Typora / VSCode 等外部编辑器。
 
 #### 👻 幽灵模式 (Ghost Mode)
 > 开启 **鼠标穿透**，悬浮于桌面顶层但不遮挡底下的任何窗口操作。
@@ -61,24 +65,16 @@
 ```bash
 # 1. 克隆项目
 git clone https://github.com/Sevendogs077/PinMD.git
-```
 
-```bash
 # 2. 进入目录
 cd PinMD
-```
 
-```bash
 # 3. 安装依赖
 npm install
-```
 
-```bash
 # 4. 启动开发模式
 npm start
-```
 
-```bash
 # 5. 打包构建
 npm run build
 ```
