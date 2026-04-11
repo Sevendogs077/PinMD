@@ -13,7 +13,7 @@
         <img src="https://img.shields.io/github/issues/Sevendogs077/PinMD?style=flat-square&logo=github" alt="GitHub issues">
     </a>
     <a href="https://github.com/Sevendogs077/PinMD/releases">
-        <img src="https://img.shields.io/github/downloads/Sevendogs077/PinMD/total?style=flat-square&logo=github" alt="Total Downloads">
+        <img src="https://img.shields.io/github/downloads/Sevendogs077/PinMD/total.svg?style=flat-square&logo=github" alt="Total Downloads">
     </a>
     <a href="https://github.com/Sevendogs077/PinMD/blob/main/LICENSE">
         <img src="https://img.shields.io/github/license/Sevendogs077/PinMD?style=flat-square" alt="License">
