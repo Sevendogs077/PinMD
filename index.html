@@ -580,12 +580,30 @@
     }
 
     function loadAndWatch(filePath) {
+      // 在监听前，先确认文件是否真的存在
+      if (!fs.existsSync(filePath)) {
+
+          // 文件不存在时的 UI 提示
+          dom.content.innerHTML = "<div style='display:flex; height:100%; align-items:center; justify-content:center; flex-direction:column; color:#ff8e8e; font-size:14px;'><div>❌ 找不到文件，可能已被移动或删除</div><div style='font-size:12px; color:rgba(255,255,255,0.5); margin-top:8px;'>请点击左上角 📂 重新选择笔记</div></div>";
+          
+          // 清除缓存中的无效路径，防止下次启动还报错
+          settings.notePath = null;
+          saveSettings();
+          return; // 立即终止，千万不要去执行下面的 fs.watch
+      }
+
+      // 文件存在，正常渲染
       renderNote(filePath);
-      // 监听文件变动，实现热更新
+      
+      // 安全地挂载监听器
       if (fileWatcher) fileWatcher.close();
-      fileWatcher = fs.watch(filePath, (e) => { 
-          if (e === 'change') renderNote(filePath); 
-      });
+      try {
+          fileWatcher = fs.watch(filePath, (e) => { 
+              if (e === 'change') renderNote(filePath); 
+          });
+      } catch (err) {
+          console.error('监听文件报错:', err);
+      }
     }
 
     function renderNote(filePath) {
@@ -597,28 +615,28 @@
         html = html.replace(/disabled=""/g, '').replace(/disabled/g, '');
         dom.content.innerHTML = html;
 
-        // --- 新增：精准隔离父子列表的文本 ---
+        // --- 精准隔离父子列表的文本 ---
         dom.content.querySelectorAll('li').forEach(li => {
-            // 只寻找直接子元素是 checkbox 的情况 (紧凑列表)
             const checkbox = li.querySelector(':scope > input[type="checkbox"]');
             if (checkbox) {
                 const wrapper = document.createElement('span');
-                wrapper.className = 'task-text'; // 配合上面的 CSS
+                wrapper.className = 'task-text'; 
                 
-                // 把 checkbox 后面的文本提取出来放进 span 里，直到遇到换行或子列表
                 let node = checkbox.nextSibling;
                 while (node && !['UL', 'OL', 'P', 'DIV', 'BLOCKQUOTE'].includes(node.nodeName)) {
                     let next = node.nextSibling;
                     wrapper.appendChild(node);
                     node = next;
                 }
-                // 把包裹好的 span 塞回去
                 li.insertBefore(wrapper, checkbox.nextSibling);
             }
         });
 
         // 恢复滚动条
         dom.content.scrollTop = scrollPos;
+      } else {
+        // 如果在阅读过程中文件被删除了，也会走到这里
+        dom.content.innerHTML = "<div style='display:flex; height:100%; align-items:center; justify-content:center; flex-direction:column; color:#ff8e8e; font-size:14px;'><div>❌ 文件在后台被意外删除或重命名</div><div style='font-size:12px; color:rgba(255,255,255,0.5); margin-top:8px;'>请点击左上角重新打开</div></div>";
       }
     }
 
