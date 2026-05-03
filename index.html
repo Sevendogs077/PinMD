@@ -453,6 +453,7 @@
     applySettings();
     
     let fileWatcher = null;
+    let renderTimer = null;
     if (settings.notePath) {
         loadAndWatch(settings.notePath);
     } else {
@@ -537,25 +538,20 @@
     };
 
     // 设置项实时预览
-    dom.inputs.opacity.oninput = (e) => { settings.opacity = e.target.value; updateCSS(); };
-    dom.inputs.fontSize.oninput = (e) => { settings.fontSize = e.target.value; updateCSS(); };
-    dom.inputs.boldColor.oninput = (e) => { settings.boldColor = e.target.value; updateCSS(); };
+    dom.inputs.opacity.oninput = (e) => { settings.opacity = e.target.value; updateCSS(); saveSettings(); };
+    dom.inputs.fontSize.oninput = (e) => { settings.fontSize = e.target.value; updateCSS(); saveSettings(); };
+    dom.inputs.boldColor.oninput = (e) => { settings.boldColor = e.target.value; updateCSS(); saveSettings(); };
 
     // 监听 Checkbox 点击事件
     dom.content.addEventListener('change', (e) => {
         if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
             if (!settings.notePath) return;
 
-            // 获取当前所有 checkbox，用于定位全局 index
             const allCheckboxes = Array.from(dom.content.querySelectorAll('input[type="checkbox"]'));
+            const targetIndex = allCheckboxes.indexOf(e.target);
 
-            const parentLi = e.target.closest('li');
-            const nestedCheckboxes = Array.from(parentLi.querySelectorAll('input[type="checkbox"]'));
-            const targetIndices = nestedCheckboxes.map(cb => allCheckboxes.indexOf(cb));
-            
-            // 批量传递给修改文件的函数
-            if (targetIndices.length > 0) {
-                toggleTasksInFile(settings.notePath, targetIndices, e.target.checked);
+            if (targetIndex !== -1) {
+                toggleTasksInFile(settings.notePath, [targetIndex], e.target.checked);
             }
         }
     });
@@ -598,8 +594,11 @@
       // 安全地挂载监听器
       if (fileWatcher) fileWatcher.close();
       try {
-          fileWatcher = fs.watch(filePath, (e) => { 
-              if (e === 'change') renderNote(filePath); 
+          fileWatcher = fs.watch(filePath, (e) => {
+              if (e === 'change' || e === 'rename') {
+                  clearTimeout(renderTimer);
+                  renderTimer = setTimeout(() => renderNote(filePath), 100);
+              }
           });
       } catch (err) {
           console.error('监听文件报错:', err);
@@ -612,7 +611,8 @@
         const text = fs.readFileSync(filePath, 'utf-8');
 
         let html = marked.parse(text);
-        html = html.replace(/disabled=""/g, '').replace(/disabled/g, '');
+        html = html.replace(/<input([^>]*?)\s+disabled=""/g, '<input$1');
+        html = html.replace(/<input([^>]*?)\s+disabled(?=[\s>])/g, '<input$1');
         dom.content.innerHTML = html;
 
         // --- 精准隔离父子列表的文本 ---
@@ -647,8 +647,8 @@
             const content = fs.readFileSync(filePath, 'utf-8');
             let matchIndex = 0;
 
-            // 正则匹配：行首(可能有缩进) + 列表符 + 空格 + [ ] 或 [x]
-            const regex = /^(\s*[-*+]\s+)\[([ xX])\]/gm;
+            // 正则匹配：行首(可能有引用/缩进) + 列表符 + 空格 + [ ] 或 [x]
+            const regex = /^((?:>\s?)*\s*[-*+]\s+)\[([ xX])\]/gm;
 
             const newContent = content.replace(regex, (match, prefix, state) => {
                 // 如果当前匹配到的 index 在我们需要修改的数组里

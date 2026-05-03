@@ -37,7 +37,7 @@ function createWindow() {
     y: height - 400 - 15
   };
 
-  const bounds = defaultBounds;
+  const bounds = state || defaultBounds;
 
   win = new BrowserWindow({
     width: bounds.width,
