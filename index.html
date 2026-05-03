@@ -145,24 +145,35 @@
 
     #content::-webkit-scrollbar-thumb,
     .panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
-    /* Markdown 标题层级 */
-    #content h1 {
+    /* Markdown 标题层级 — 居中 + 两侧极简横线 */
+    #content h1, #content h2, #content h3 {
+        display: flex;
+        align-items: center;
+        text-align: center;
         color: var(--text-color);
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 4px; margin-top: 12px; margin-bottom: 6px;
-        font-weight: 600; font-size: 1.25em;
+        font-weight: 600;
+        border: none;
+        padding-bottom: 0;
     }
-    #content h2 {
-        color: var(--text-color);
-        border-bottom: 1px solid rgba(255,255,255,0.06);
-        padding-bottom: 3px; margin-top: 10px; margin-bottom: 5px;
-        font-weight: 600; font-size: 1.12em;
+    #content h1::before, #content h1::after,
+    #content h2::before, #content h2::after,
+    #content h3::before, #content h3::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: rgba(255,255,255,0.15);
     }
-    #content h3 {
-        color: var(--text-color);
-        margin-top: 8px; margin-bottom: 4px;
-        font-weight: 600; font-size: 1.05em;
-    }
+    #content h1 { font-size: 1.25em; margin: 14px 0 8px; letter-spacing: 0.08em; }
+    #content h1::before { margin-right: 16px; }
+    #content h1::after  { margin-left:  16px; }
+
+    #content h2 { font-size: 1.12em; margin: 12px 0 6px; letter-spacing: 0.06em; }
+    #content h2::before { margin-right: 14px; }
+    #content h2::after  { margin-left:  14px; }
+
+    #content h3 { font-size: 1.05em; margin: 10px 0 5px; letter-spacing: 0.04em; }
+    #content h3::before { margin-right: 12px; }
+    #content h3::after  { margin-left:  12px; }
     #content strong { color: var(--highlight-color) !important; font-weight: bold;}
     #content code { 
         background: rgba(255,255,255,0.15); 
@@ -517,10 +528,23 @@
             dom.editFab.innerHTML = '💾'; // 图标变成保存
             dom.editFab.title = "保存更改";
 
-            // 滚动到与预览模式相同比例的位置，光标置于文档开头
-            dom.editor.scrollTop = ratio * (dom.editor.scrollHeight - dom.editor.clientHeight);
-            dom.editor.setSelectionRange(0, 0);
-            dom.editor.focus();
+            // 等布局完成后再设置滚动和光标，避免 scrollHeight 仍为旧值
+            requestAnimationFrame(() => {
+                const maxScroll = dom.editor.scrollHeight - dom.editor.clientHeight;
+                dom.editor.scrollTop = ratio * maxScroll;
+
+                // 光标放在当前视角第一行，而非文档第一行
+                const lineHeight = settings.fontSize * 1.8;
+                const topLine = Math.floor(dom.editor.scrollTop / lineHeight);
+                let pos = 0;
+                for (let i = 0; i < topLine; i++) {
+                    const next = dom.editor.value.indexOf('\n', pos);
+                    if (next === -1) { pos = dom.editor.value.length; break; }
+                    pos = next + 1;
+                }
+                dom.editor.setSelectionRange(pos, pos);
+                dom.editor.focus();
+            });
         } else {
             // 保存并退出编辑模式
             const newText = dom.editor.value;
