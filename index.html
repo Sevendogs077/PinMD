@@ -145,12 +145,23 @@
 
     #content::-webkit-scrollbar-thumb,
     .panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
-    /* Markdown 优化 */
-    #content h1, #content h2 { 
-        color: var(--text-color); 
-        border-bottom: 1px solid rgba(255,255,255,0.1); 
+    /* Markdown 标题层级 */
+    #content h1 {
+        color: var(--text-color);
+        border-bottom: 1px solid rgba(255,255,255,0.1);
         padding-bottom: 4px; margin-top: 12px; margin-bottom: 6px;
-        font-weight: 600; font-size: 1.15em;
+        font-weight: 600; font-size: 1.25em;
+    }
+    #content h2 {
+        color: var(--text-color);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        padding-bottom: 3px; margin-top: 10px; margin-bottom: 5px;
+        font-weight: 600; font-size: 1.12em;
+    }
+    #content h3 {
+        color: var(--text-color);
+        margin-top: 8px; margin-bottom: 4px;
+        font-weight: 600; font-size: 1.05em;
     }
     #content strong { color: var(--highlight-color) !important; font-weight: bold;}
     #content code { 
@@ -492,13 +503,23 @@
         if (!isEditing) {
             // 进入编辑模式
             isEditing = true;
+
+            // 记录预览区滚动比例，用于编辑器定位到当前视角
+            const ratio = dom.content.scrollHeight > dom.content.clientHeight
+                ? dom.content.scrollTop / (dom.content.scrollHeight - dom.content.clientHeight)
+                : 0;
+
             // 实时读取最新内容填入编辑器
             dom.editor.value = fs.readFileSync(settings.notePath, 'utf-8');
             dom.content.style.display = 'none';
             dom.editor.style.display = 'block';
-            
+
             dom.editFab.innerHTML = '💾'; // 图标变成保存
             dom.editFab.title = "保存更改";
+
+            // 滚动到与预览模式相同比例的位置，光标置于文档开头
+            dom.editor.scrollTop = ratio * (dom.editor.scrollHeight - dom.editor.clientHeight);
+            dom.editor.setSelectionRange(0, 0);
             dom.editor.focus();
         } else {
             // 保存并退出编辑模式
@@ -513,6 +534,43 @@
             dom.editFab.title = "编辑笔记";
         }
     };
+
+    // 编辑器快捷键（仅编辑模式生效）
+    dom.editor.addEventListener('keydown', (e) => {
+        if (!isEditing) return;
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = dom.editor.selectionStart;
+            const end = dom.editor.selectionEnd;
+            if (e.shiftKey) {
+                // Shift+Tab: 减少 2 空格缩进
+                const lineStart = dom.editor.value.lastIndexOf('\n', start - 1) + 1;
+                const line = dom.editor.value.substring(lineStart, start);
+                const indent = line.match(/^ {1,2}/);
+                if (indent) {
+                    dom.editor.value = dom.editor.value.substring(0, lineStart) + dom.editor.value.substring(lineStart + indent[0].length);
+                    dom.editor.selectionStart = dom.editor.selectionEnd = start - indent[0].length;
+                }
+            } else {
+                // Tab: 插入 2 空格
+                dom.editor.value = dom.editor.value.substring(0, start) + '  ' + dom.editor.value.substring(end);
+                dom.editor.selectionStart = dom.editor.selectionEnd = start + 2;
+            }
+        }
+
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            // 触发保存并退出编辑模式
+            const newText = dom.editor.value;
+            fs.writeFileSync(settings.notePath, newText, 'utf-8');
+            isEditing = false;
+            dom.editor.style.display = 'none';
+            dom.content.style.display = 'block';
+            dom.editFab.innerHTML = '✎';
+            dom.editFab.title = '编辑笔记';
+        }
+    });
 
     // 右键：保留原来的调用外部编辑器功能
     dom.editFab.oncontextmenu = (e) => {
